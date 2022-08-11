@@ -1,9 +1,12 @@
-﻿using BookStore.BookOperations.CreateBook;
+﻿using AutoMapper;
+using BookStore.BookOperations.CreateBook;
 using BookStore.BookOperations.DeleteBook;
 using BookStore.BookOperations.GetBookDetail;
 using BookStore.BookOperations.GetBooks;
 using BookStore.BookOperations.UpdateBook;
 using BookStore.DBOperations;
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -20,11 +23,14 @@ namespace BookStore.Controllers
     [ApiController]
     public class BookController : ControllerBase
     {
+        private readonly IMapper _mapper;
+
         //Entity çalışması
         readonly BookStoreDbContext _context;
-        public BookController(BookStoreDbContext context)
+        public BookController(BookStoreDbContext context,IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
        
@@ -32,21 +38,23 @@ namespace BookStore.Controllers
         [HttpGet]
         public IActionResult GetBooks()
         {
-            GetBooksQuery query = new GetBooksQuery(_context);
+            GetBooksQuery query = new GetBooksQuery(_context,_mapper);
             var result = query.Handle();
             return Ok(result);
 
         }
-
+        
         [HttpGet("{id}")]
         public IActionResult GetById(int id)
         {
-            GetBookDetailQuery query = new GetBookDetailQuery(_context);
+            GetBookDetailQuery query = new GetBookDetailQuery(_context,_mapper);
             query.BookId = id;
             BookDetailViewModel result;
             try
             {
                 query.BookId = id;
+                GetBookDeatilQueryValidator validator = new GetBookDeatilQueryValidator();
+                validator.ValidateAndThrow(query);
                 result = query.Handle();
             }
             catch (Exception ex)
@@ -60,11 +68,14 @@ namespace BookStore.Controllers
         [HttpPost]
         public IActionResult AddBook(CreateBookModel newBook)
         {
-            CreateBookCommand command = new CreateBookCommand(_context);
+            CreateBookCommand command = new CreateBookCommand(_context,_mapper);
             try
             {
                 command.Model = newBook;
+                CreateBookCommandValidator validator = new CreateBookCommandValidator();
+                validator.ValidateAndThrow(command);
                 command.Handle();
+              
             }
             catch(Exception ex)
             {
@@ -81,6 +92,8 @@ namespace BookStore.Controllers
             try
             {
                 query.Model = updatedBook;
+                UpdateBookQueryValidator validator = new UpdateBookQueryValidator();
+                validator.ValidateAndThrow(query);
                 query.Handle();
             }
             catch (Exception ex)
@@ -100,6 +113,8 @@ namespace BookStore.Controllers
             try
             {
                 query.BookId = id;
+                DeleteBookQueryValidator validator = new DeleteBookQueryValidator();
+                validator.ValidateAndThrow(query);
                 query.Handle();
             }
             catch (Exception ex)
